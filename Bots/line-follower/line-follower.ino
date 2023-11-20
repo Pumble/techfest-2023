@@ -1,32 +1,29 @@
 /**
- * Fuentes
+ * Referencias
  * https://www.youtube.com/watch?v=YkfBtjs8uWg&ab_channel=ScienceFun
  * https://www.bananarobotics.com/shop/How-to-use-the-HG7881-(L9110)-Dual-Channel-Motor-Driver-Module
+ * https://robots-argentina.com.ar/didactica/puente-h-placa-controladora-de-motores-l9110s/
  */
 
-// wired connections
-#define HG7881_B_IA 10  // D10 --> Motor B Input A --> MOTOR B +
-#define HG7881_B_IB 9   // D11 --> Motor B Input B --> MOTOR B -
+// ================================== Wired connections ==================================
+#define MOTOR_RIGHT_AIA 8
+#define MOTOR_RIGHT_AIB 7
+#define MOTOR_LEFT_BIA 10
+#define MOTOR_LEFT_BIB 9
 
-// functional connections
-#define MOTOR_B_PWM HG7881_B_IA  // Motor B PWM Speed
-#define MOTOR_B_DIR HG7881_B_IB  // Motor B Direction
-
-
-
-
-
-
-#define A1A 5  // D5
-#define A1B 4  // D4
-
-
-#define MOVEMENT_FORWARD 'F'
-#define MOVEMENT_BACKWARD 'B'
-#define MOVEMENT_LEFT 'L'
-#define MOVEMENT_RIGHT 'R'
-#define MOVEMENT_STOP 'S'
-int speed = 51;
+// ================================== Functional connections ==================================
+// Motor and H-Bridge
+#define MOTOR_RIGHT_PWM MOTOR_RIGHT_AIA  // Motor Right Speed
+#define MOTOR_RIGHT_DIR MOTOR_RIGHT_AIB  // Motor Right Direction
+#define MOTOR_LEFT_PWM MOTOR_LEFT_BIA    // Motor Left Speed
+#define MOTOR_LEFT_DIR MOTOR_LEFT_BIB    // Motor Left Direction
+// Movement for testing
+#define MOVEMENT_FORWARD 'W'
+#define MOVEMENT_BACKWARD 'S'
+#define MOVEMENT_LEFT 'A'
+#define MOVEMENT_RIGHT 'D'
+#define MOVEMENT_STOP 'X'
+byte speed = 200;
 
 // BUILT-IN LED
 #define LED 13
@@ -57,65 +54,80 @@ void loop() {
         backward();
         break;
       case MOVEMENT_LEFT:
-        rotateLeft();
+        left();
         break;
       case MOVEMENT_RIGHT:
-        rotateRight();
+        right();
         break;
       case MOVEMENT_STOP:
-        stop();
+        softStop();
         break;
     }
   }
 }
 
-/* ============================== SETUP ============================== */
+/* ================================== SETUP ================================== */
 
 void setupMotors() {
-  pinMode(MOTOR_B_DIR, OUTPUT);
-  pinMode(MOTOR_B_PWM, OUTPUT);
-  digitalWrite(MOTOR_B_DIR, LOW);
-  digitalWrite(MOTOR_B_PWM, LOW);
+  pinMode(MOTOR_RIGHT_PWM, OUTPUT);  // fijar los pines como salidas
+  pinMode(MOTOR_RIGHT_DIR, OUTPUT);
+  pinMode(MOTOR_LEFT_PWM, OUTPUT);
+  pinMode(MOTOR_LEFT_DIR, OUTPUT);
+
+  digitalWrite(MOTOR_RIGHT_PWM, LOW);
+  digitalWrite(MOTOR_RIGHT_DIR, LOW);
+  digitalWrite(MOTOR_LEFT_PWM, LOW);
+  digitalWrite(MOTOR_LEFT_DIR, LOW);
 }
 
-/* ============================== END SETUP ============================== */
+/* ================================== END SETUP ================================== */
 
-/* ============================== MOVEMENT ============================== */
+/* ================================== MOVEMENT ================================== */
 
 void forward() {
-  Serial.println("forward");
+  Serial.println("Forward");
 
-  digitalWrite(MOTOR_B_DIR, LOW);
-  digitalWrite(MOTOR_B_PWM, LOW);
-  // set the motor speed and direction
-  digitalWrite(MOTOR_B_DIR, HIGH);           // direction = forward
-  analogWrite(MOTOR_B_PWM, 200);  // PWM speed = fast
+  analogWrite(MOTOR_RIGHT_PWM, speed);
+  analogWrite(MOTOR_RIGHT_DIR, 0);
+  analogWrite(MOTOR_LEFT_PWM, speed);
+  analogWrite(MOTOR_LEFT_DIR, 0);
 }
 
 void backward() {
-  // digitalWrite(LED, LOW);
+  Serial.println("Backward");
 
-  // analogWrite(B2A, 0);
-  // analogWrite(B1A, speed);
-
-  // digitalWrite(A1A, HIGH);
-  // digitalWrite(A1B, LOW);
+  analogWrite(MOTOR_RIGHT_PWM, 0);
+  analogWrite(MOTOR_RIGHT_DIR, speed);
+  analogWrite(MOTOR_LEFT_PWM, 0);
+  analogWrite(MOTOR_LEFT_DIR, speed);
 }
 
-void rotateRight() {
+void left() {
+  Serial.println("Left");
+
+  analogWrite(MOTOR_RIGHT_PWM, speed);
+  analogWrite(MOTOR_RIGHT_DIR, 0);
+  analogWrite(MOTOR_LEFT_PWM, 0);
+  analogWrite(MOTOR_LEFT_DIR, speed);
 }
 
-void rotateLeft() {
+void right() {
+  Serial.println("Right");
+
+  analogWrite(MOTOR_RIGHT_PWM, 0);
+  analogWrite(MOTOR_RIGHT_DIR, speed);
+  analogWrite(MOTOR_LEFT_PWM, speed);
+  analogWrite(MOTOR_LEFT_DIR, 0);
 }
 
-void stop() {
-  // digitalWrite(LED, LOW);
+void softStop() {
+  Serial.println("Stop");
 
-  // analogWrite(B2A, 0);
-  // analogWrite(B1A, speed);
+  digitalWrite(MOTOR_RIGHT_PWM, LOW);
+  digitalWrite(MOTOR_RIGHT_DIR, LOW);
 
-  // digitalWrite(A1A, LOW);
-  // digitalWrite(A1B, LOW);
+  digitalWrite(MOTOR_LEFT_PWM, LOW);
+  digitalWrite(MOTOR_LEFT_DIR, LOW);
 }
 
 /* ============================== END MOVEMENT ============================== */
