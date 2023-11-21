@@ -35,6 +35,17 @@ byte speed = 200;
 #define LED LED_BUILTIN
 #define BLINK_INTERVAL 300
 
+enum MOVEMENT_STATUS {
+  HARD_LEFT,
+  LEFT,
+  CENTER,
+  RIGHT,
+  HARD_RIGHT
+};
+MOVEMENT_STATUS movement = CENTER;
+#define MOVEMENT_DELAY 10
+#define MOVEMENT_HARD_DELAY 50
+
 void setup() {
   pinMode(LED, OUTPUT);
   Serial.begin(9600);
@@ -50,27 +61,22 @@ void setup() {
 
 int input = 0;
 void loop() {
-  if (Serial.available() > 0) {
-    input = (char)Serial.read();
-    Serial.println((char)input);
-
-    switch (input) {
-      case MOVEMENT_FORWARD:
-        forward();
-        break;
-      case MOVEMENT_BACKWARD:
-        backward();
-        break;
-      case MOVEMENT_LEFT:
-        left();
-        break;
-      case MOVEMENT_RIGHT:
-        right();
-        break;
-      case MOVEMENT_STOP:
-        softStop();
-        break;
-    }
+  switch (movement) {
+    case HARD_LEFT:
+      left(MOVEMENT_HARD_DELAY);
+      break;
+    case LEFT:
+      left(MOVEMENT_DELAY);
+      break;
+    case CENTER:
+      forward(MOVEMENT_DELAY);
+      break;
+    case RIGHT:
+      right(MOVEMENT_HARD_DELAY);
+      break;
+    case HARD_RIGHT:
+      right(MOVEMENT_HARD_DELAY);
+      break;
   }
 }
 
@@ -97,13 +103,14 @@ void setupI2C() {
 
 /* ================================== MOVEMENT ================================== */
 
-void forward() {
+void forward(int pDelay) {
   Serial.println("Forward");
 
   analogWrite(MOTOR_RIGHT_PWM, speed);
   analogWrite(MOTOR_RIGHT_DIR, 0);
   analogWrite(MOTOR_LEFT_PWM, speed);
   analogWrite(MOTOR_LEFT_DIR, 0);
+  delay(pDelay);
 }
 
 void backward() {
@@ -115,22 +122,24 @@ void backward() {
   analogWrite(MOTOR_LEFT_DIR, speed);
 }
 
-void left() {
+void left(int pDelay) {
   Serial.println("Left");
 
   analogWrite(MOTOR_RIGHT_PWM, speed);
   analogWrite(MOTOR_RIGHT_DIR, 0);
   analogWrite(MOTOR_LEFT_PWM, 0);
   analogWrite(MOTOR_LEFT_DIR, speed);
+  delay(pDelay);
 }
 
-void right() {
+void right(int pDelay) {
   Serial.println("Right");
 
   analogWrite(MOTOR_RIGHT_PWM, 0);
   analogWrite(MOTOR_RIGHT_DIR, speed);
   analogWrite(MOTOR_LEFT_PWM, speed);
   analogWrite(MOTOR_LEFT_DIR, 0);
+  delay(pDelay);
 }
 
 void softStop() {
@@ -171,21 +180,66 @@ void softStop() {
 //   }
 // }
 
-#define SL_DATA_SIZE 7
-int receivedData[SL_DATA_SIZE] = { 0, 0, 0, 0, 0, 0, 0 };
+#define SL_DATA_SIZE 5
+int receivedData[SL_DATA_SIZE] = { 0, 0, 0, 0, 0 };
 
 void receiveEvent(int howmany)  //howmany = Wire.write()executed by Master
 {
   Serial.println("============================");
   for (int i = 0; i < howmany; i++) {
     receivedData[i] = Wire.read();
-    Serial.print(receivedData[i]);
-    Serial.print(", ");
+    // Serial.print(receivedData[i]);
+    // Serial.print(", ");
   }
-  Serial.println();
+  // Serial.println();
+  // Here we need to set the movement idea
+  if (receivedData[2] == 0) {  // center sensor is off
+    movement = CENTER;
+  }
+  if (receivedData[0] == 0) {  // hard left sensor is off
+    movement = HARD_LEFT;
+  }
+  if (receivedData[1] == 0) {  // left sensor is off
+    movement = LEFT;
+  }
+  if (receivedData[3] == 0) {  // hard left sensor is off
+    movement = RIGHT;
+  }
+  if (receivedData[4] == 0) {  // left sensor is off
+    movement = HARD_RIGHT;
+  }
 }
 
 /* ================================== END I2C-COMMUNICATION ================================== */
+
+/* ================================== TESTING ================================== */
+
+void testLoop() {
+  if (Serial.available() > 0) {
+    input = (char)Serial.read();
+    Serial.println((char)input);
+
+    switch (input) {
+      case MOVEMENT_FORWARD:
+        forward(MOVEMENT_DELAY);
+        break;
+      case MOVEMENT_BACKWARD:
+        backward();
+        break;
+      case MOVEMENT_LEFT:
+        left(MOVEMENT_DELAY);
+        break;
+      case MOVEMENT_RIGHT:
+        right(MOVEMENT_DELAY);
+        break;
+      case MOVEMENT_STOP:
+        softStop();
+        break;
+    }
+  }
+}
+
+/* ================================== END TESTING ================================== */
 
 void toogleLight(int times) {
   for (int i = 0; i < times; i++) {
@@ -195,3 +249,11 @@ void toogleLight(int times) {
     delay(BLINK_INTERVAL);
   }
 }
+
+
+// SEGIR LEYENDO
+// https://projecthub.arduino.cc/lightthedreams/line-following-robot-34b1d3
+// https://circuitdigest.com/microcontroller-projects/arduino-uno-line-follower-robot
+
+
+

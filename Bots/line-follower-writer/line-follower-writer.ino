@@ -22,9 +22,9 @@
 #define SL_S5 6    // RightOut
 #define SL_CLP 7   // Bump
 #define SL_NEAR 8  // Near
-#define SL_DATA_SIZE 7
-int dataToSend[SL_DATA_SIZE] = { 0, 0, 0, 0, 0, 0, 0 };
-#define READ_INTERVAL 100
+#define SL_DATA_SIZE 5
+int dataToSend[SL_DATA_SIZE] = { 0, 0, 0, 0, 0 };  // we going to ignore near and bumper for now
+#define READ_INTERVAL 10
 
 #define BLINK_INTERVAL 300
 
@@ -53,6 +53,14 @@ void loop() {
 /* ================================== SETUP ================================== */
 
 void setupI2C() {
+  digitalWrite(SL_S1, LOW);
+  digitalWrite(SL_S2, LOW);
+  digitalWrite(SL_S3, LOW);
+  digitalWrite(SL_S4, LOW);
+  digitalWrite(SL_S5, LOW);
+  digitalWrite(SL_CLP, LOW);
+  digitalWrite(SL_NEAR, LOW);
+
   Wire.begin();  // join i2c bus (address optional for writer).
 }
 
@@ -66,8 +74,8 @@ void getSensorData() {
   dataToSend[2] = digitalRead(SL_S3);
   dataToSend[3] = digitalRead(SL_S4);
   dataToSend[4] = digitalRead(SL_S5);
-  dataToSend[5] = digitalRead(SL_CLP);
-  dataToSend[6] = digitalRead(SL_NEAR);
+  // dataToSend[5] = digitalRead(SL_CLP);
+  // dataToSend[6] = digitalRead(SL_NEAR);
 }
 
 // For debugging
