@@ -1,9 +1,15 @@
 /**
- * Referencias
+ * References
  * https://www.youtube.com/watch?v=YkfBtjs8uWg&ab_channel=ScienceFun
- * https://www.bananarobotics.com/shop/How-to-use-the-HG7881-(L9110)-Dual-Channel-Motor-Driver-Module
- * https://robots-argentina.com.ar/didactica/puente-h-placa-controladora-de-motores-l9110s/
+ * H-Bridge: https://www.bananarobotics.com/shop/How-to-use-the-HG7881-(L9110)-Dual-Channel-Motor-Driver-Module
+ * H-Bridge: https://robots-argentina.com.ar/didactica/puente-h-placa-controladora-de-motores-l9110s/
+ * 7-way Multitracking: https://arduinoinfo.mywikis.net/wiki/Robot_7-wayMultiTrackingSensor
+ * I2C: https://docs.arduino.cc/tutorials/nano-every/i2c
+ * I2C: https://www.tinkercad.com/things/47BHtheMgD5-copy-of-i2c/editel
+ * Power up arduino nano: https://linuxhint.com/3-ways-power-up-arduino-nano/
  */
+
+#include <Wire.h>
 
 // ================================== Wired connections ==================================
 #define MOTOR_RIGHT_AIA 8
@@ -26,7 +32,7 @@
 byte speed = 200;
 
 // BUILT-IN LED
-#define LED 13
+#define LED LED_BUILTIN
 #define BLINK_INTERVAL 300
 
 void setup() {
@@ -36,6 +42,8 @@ void setup() {
   // SETUPS
   Serial.println("starting setup");
   setupMotors();
+  Serial.println("xxxxx");
+  setupI2C();
 
   Serial.println("setup completed");
 }
@@ -78,6 +86,11 @@ void setupMotors() {
   digitalWrite(MOTOR_RIGHT_DIR, LOW);
   digitalWrite(MOTOR_LEFT_PWM, LOW);
   digitalWrite(MOTOR_LEFT_DIR, LOW);
+}
+
+void setupI2C() {
+  Wire.begin(8);
+  Wire.onReceive(receiveEvent);
 }
 
 /* ================================== END SETUP ================================== */
@@ -130,7 +143,49 @@ void softStop() {
   digitalWrite(MOTOR_LEFT_DIR, LOW);
 }
 
-/* ============================== END MOVEMENT ============================== */
+/* ================================== END MOVEMENT ================================== */
+
+/* ================================== I2C-COMMUNICATION ================================== */
+
+// void receiveEvent(int howMany) {
+
+//   while (1 < Wire.available()) {
+//     char c = Wire.read();
+//     Serial.print(c);
+//   }
+
+//   int x = Wire.read();
+//   Serial.print(x);
+//   Serial.print("\n");
+// }
+
+// void receiveEvent(int howMany) {
+//   int c = Wire.read();  // receive a character
+//   Serial.print("data received: ");
+//   Serial.println(c);
+//   if (c == 0) {
+//     digitalWrite(LED_BUILTIN, LOW);  // turn the LED off by making the voltage LOW
+//   }
+//   if (c == 1) {
+//     digitalWrite(LED_BUILTIN, HIGH);  // turn the LED on (HIGH is the voltage level)
+//   }
+// }
+
+#define SL_DATA_SIZE 7
+int receivedData[SL_DATA_SIZE] = { 0, 0, 0, 0, 0, 0, 0 };
+
+void receiveEvent(int howmany)  //howmany = Wire.write()executed by Master
+{
+  Serial.println("============================");
+  for (int i = 0; i < howmany; i++) {
+    receivedData[i] = Wire.read();
+    Serial.print(receivedData[i]);
+    Serial.print(", ");
+  }
+  Serial.println();
+}
+
+/* ================================== END I2C-COMMUNICATION ================================== */
 
 void toogleLight(int times) {
   for (int i = 0; i < times; i++) {
