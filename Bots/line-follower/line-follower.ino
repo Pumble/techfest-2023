@@ -30,21 +30,27 @@
 #define MOVEMENT_RIGHT 'D'
 #define MOVEMENT_STOP 'X'
 byte speed = 200;
+byte turn_speed = 100;
+byte hard_turn_speed = 61;
 
 // BUILT-IN LED
 #define LED LED_BUILTIN
 #define BLINK_INTERVAL 300
 
 enum MOVEMENT_STATUS {
+  STAND_BY,
   HARD_LEFT,
   LEFT,
   CENTER,
   RIGHT,
-  HARD_RIGHT
+  HARD_RIGHT,
+  LOST
 };
-MOVEMENT_STATUS movement = CENTER;
+MOVEMENT_STATUS movement = STAND_BY;
 #define MOVEMENT_DELAY 10
 #define MOVEMENT_HARD_DELAY 50
+#define SL_DATA_SIZE 5
+int receivedData[SL_DATA_SIZE] = { 0, 0, 0, 0, 0 };
 
 void setup() {
   pinMode(LED, OUTPUT);
@@ -53,31 +59,42 @@ void setup() {
   // SETUPS
   Serial.println("starting setup");
   setupMotors();
-  Serial.println("xxxxx");
   setupI2C();
 
   Serial.println("setup completed");
+
+  delay(5000);
 }
 
 int input = 0;
 void loop() {
+  // Serial.println();
+  // Serial.print("movement: ");
+  // Serial.print(movement);
+  // Serial.println();
+
   switch (movement) {
     case HARD_LEFT:
-      left(MOVEMENT_HARD_DELAY);
+      forward(hard_turn_speed, speed);
       break;
     case LEFT:
-      left(MOVEMENT_DELAY);
+      forward(turn_speed, speed);
       break;
     case CENTER:
-      forward(MOVEMENT_DELAY);
+      forward(speed, speed);
       break;
     case RIGHT:
-      right(MOVEMENT_HARD_DELAY);
+      forward(speed, turn_speed);
       break;
     case HARD_RIGHT:
-      right(MOVEMENT_HARD_DELAY);
+      forward(speed, hard_turn_speed);
+      break;
+    case LOST:
+    case STAND_BY:
+      softStop();
       break;
   }
+  delay(MOVEMENT_DELAY);
 }
 
 /* ================================== SETUP ================================== */
@@ -103,14 +120,14 @@ void setupI2C() {
 
 /* ================================== MOVEMENT ================================== */
 
-void forward(int pDelay) {
-  Serial.println("Forward");
+void forward(int leftSpeed, int rightSpeed) {
+  // Serial.println("Forward");
 
-  analogWrite(MOTOR_RIGHT_PWM, speed);
+  analogWrite(MOTOR_RIGHT_PWM, rightSpeed);
   analogWrite(MOTOR_RIGHT_DIR, 0);
-  analogWrite(MOTOR_LEFT_PWM, speed);
+  analogWrite(MOTOR_LEFT_PWM, leftSpeed);
   analogWrite(MOTOR_LEFT_DIR, 0);
-  delay(pDelay);
+  delay(MOVEMENT_DELAY);
 }
 
 void backward() {
@@ -128,7 +145,7 @@ void left(int pDelay) {
   analogWrite(MOTOR_RIGHT_PWM, speed);
   analogWrite(MOTOR_RIGHT_DIR, 0);
   analogWrite(MOTOR_LEFT_PWM, 0);
-  analogWrite(MOTOR_LEFT_DIR, speed);
+  analogWrite(MOTOR_LEFT_DIR, turn_speed);
   delay(pDelay);
 }
 
@@ -136,14 +153,14 @@ void right(int pDelay) {
   Serial.println("Right");
 
   analogWrite(MOTOR_RIGHT_PWM, 0);
-  analogWrite(MOTOR_RIGHT_DIR, speed);
+  analogWrite(MOTOR_RIGHT_DIR, turn_speed);
   analogWrite(MOTOR_LEFT_PWM, speed);
   analogWrite(MOTOR_LEFT_DIR, 0);
   delay(pDelay);
 }
 
 void softStop() {
-  Serial.println("Stop");
+  // Serial.println("Stop");
 
   digitalWrite(MOTOR_RIGHT_PWM, LOW);
   digitalWrite(MOTOR_RIGHT_DIR, LOW);
@@ -156,58 +173,59 @@ void softStop() {
 
 /* ================================== I2C-COMMUNICATION ================================== */
 
-// void receiveEvent(int howMany) {
+/**
+ * { 1, 1, 1, 1, 1 } = stand by
+ * { 0, 1, 1, 1, 1 } = hard left
+ * { 1, 0, 1, 1, 1 } = left
+ * { 1, 1, 0, 1, 1 } = center
+ * { 1, 1, 1, 0, 1 } = right
+ * { 1, 1, 1, 1, 0 } = hard right
+ * { 0, 0, 0, 0, 0 } = lost
+ */
 
-//   while (1 < Wire.available()) {
-//     char c = Wire.read();
-//     Serial.print(c);
-//   }
-
-//   int x = Wire.read();
-//   Serial.print(x);
-//   Serial.print("\n");
-// }
-
-// void receiveEvent(int howMany) {
-//   int c = Wire.read();  // receive a character
-//   Serial.print("data received: ");
-//   Serial.println(c);
-//   if (c == 0) {
-//     digitalWrite(LED_BUILTIN, LOW);  // turn the LED off by making the voltage LOW
-//   }
-//   if (c == 1) {
-//     digitalWrite(LED_BUILTIN, HIGH);  // turn the LED on (HIGH is the voltage level)
-//   }
-// }
-
-#define SL_DATA_SIZE 5
-int receivedData[SL_DATA_SIZE] = { 0, 0, 0, 0, 0 };
-
-void receiveEvent(int howmany)  //howmany = Wire.write()executed by Master
-{
-  Serial.println("============================");
-  for (int i = 0; i < howmany; i++) {
-    receivedData[i] = Wire.read();
-    // Serial.print(receivedData[i]);
-    // Serial.print(", ");
+void receiveEvent(int howMany) {
+  // RESET THE ARRAY
+  for (int i = 0; i < SL_DATA_SIZE; i++) {
+    receivedData[i] = 0;
   }
-  // Serial.println();
-  // Here we need to set the movement idea
-  if (receivedData[2] == 0) {  // center sensor is off
+
+  for (int i = 0; i < howMany; i++) {
+    receivedData[i] = Wire.read();
+  }
+  /**
+   * Teoricamente, siempre debemos ir hacia adelante, 
+   * si la curva no es muy cerrada, y los sensores left o right 
+   * se activan, la curva va en esa direccion, pero no es muy
+   * pronunciada, por lo que solo reducir la velocidad deberia
+   * funcionar. Lo mismo con los extremos, solo que debemos
+   * reducir la velocidad más drasticamente.
+   */
+
+  if (receivedData[0] == 1 && receivedData[1] == 1 && receivedData[2] == 1 && receivedData[3] == 1 && receivedData[4] == 1) {
+    movement = STAND_BY;
+  } else if (receivedData[0] == 0 && receivedData[1] == 1 && receivedData[2] == 1 && receivedData[3] == 1 && receivedData[4] == 1) {
+    movement = HARD_LEFT;
+  } else if (receivedData[0] == 1 && receivedData[1] == 0 && receivedData[2] == 1 && receivedData[3] == 1 && receivedData[4] == 1) {
+    movement = LEFT;
+  } else if (receivedData[0] == 1 && receivedData[1] == 1 && receivedData[2] == 0 && receivedData[3] == 1 && receivedData[4] == 1) {
+    movement = CENTER;
+  } else if (receivedData[0] == 1 && receivedData[1] == 1 && receivedData[2] == 1 && receivedData[3] == 0 && receivedData[4] == 1) {
+    movement = RIGHT;
+  } else if (receivedData[0] == 1 && receivedData[1] == 1 && receivedData[2] == 1 && receivedData[3] == 1 && receivedData[4] == 0) {
+    movement = HARD_RIGHT;
+  } else if (receivedData[0] == 0 && receivedData[1] == 0 && receivedData[2] == 0 && receivedData[3] == 0 && receivedData[4] == 0) {
+    movement = LOST;
+  } else {  // SINO, vamos de frente
     movement = CENTER;
   }
-  if (receivedData[0] == 0) {  // hard left sensor is off
-    movement = HARD_LEFT;
+
+  Serial.print("================= Received =================");
+  Serial.println();
+  for (int i = 0; i < SL_DATA_SIZE; i++) {
+    Serial.print(receivedData[i]);
+    Serial.print(", ");
   }
-  if (receivedData[1] == 0) {  // left sensor is off
-    movement = LEFT;
-  }
-  if (receivedData[3] == 0) {  // hard left sensor is off
-    movement = RIGHT;
-  }
-  if (receivedData[4] == 0) {  // left sensor is off
-    movement = HARD_RIGHT;
-  }
+  Serial.println();
 }
 
 /* ================================== END I2C-COMMUNICATION ================================== */
@@ -221,7 +239,7 @@ void testLoop() {
 
     switch (input) {
       case MOVEMENT_FORWARD:
-        forward(MOVEMENT_DELAY);
+        forward(MOVEMENT_DELAY, MOVEMENT_DELAY);
         break;
       case MOVEMENT_BACKWARD:
         backward();
@@ -254,6 +272,3 @@ void toogleLight(int times) {
 // SEGIR LEYENDO
 // https://projecthub.arduino.cc/lightthedreams/line-following-robot-34b1d3
 // https://circuitdigest.com/microcontroller-projects/arduino-uno-line-follower-robot
-
-
-

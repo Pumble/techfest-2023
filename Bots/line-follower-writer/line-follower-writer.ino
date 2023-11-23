@@ -15,18 +15,17 @@
 // ================================== Wired connections ==================================
 
 // SL: Sensor Line
-#define SL_S1 2    // LeftOut
-#define SL_S2 3    // LeftIn
-#define SL_S3 4    // Center
-#define SL_S4 5    // RightIn
-#define SL_S5 6    // RightOut
-#define SL_CLP 7   // Bump
-#define SL_NEAR 8  // Near
+#define SL_S1 2  // LeftOut
+#define SL_S2 3  // LeftIn
+#define SL_S3 4  // Center
+#define SL_S4 5  // RightIn
+#define SL_S5 6  // RightOut
+
 #define SL_DATA_SIZE 5
 int dataToSend[SL_DATA_SIZE] = { 0, 0, 0, 0, 0 };  // we going to ignore near and bumper for now
 #define READ_INTERVAL 10
-
 #define BLINK_INTERVAL 300
+#define INITIAL_DELAY 5000
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
@@ -37,11 +36,14 @@ void setup() {
   // SETUPS
   Serial.println("starting setup");
   setupI2C();
+  setupLineFollower();
   Serial.println("setup completed");
+  delay(INITIAL_DELAY);
 }
 
 void loop() {
   getSensorData();
+  // showSensorData();
   Wire.beginTransmission(8);
   for (int i = 0; i < SL_DATA_SIZE; i++) {
     Wire.write(dataToSend[i]);  //data bytes are queued in local buffer
@@ -53,15 +55,15 @@ void loop() {
 /* ================================== SETUP ================================== */
 
 void setupI2C() {
+  Wire.begin();  // join i2c bus (address optional for writer).
+}
+
+void setupLineFollower() {
   digitalWrite(SL_S1, LOW);
   digitalWrite(SL_S2, LOW);
   digitalWrite(SL_S3, LOW);
   digitalWrite(SL_S4, LOW);
   digitalWrite(SL_S5, LOW);
-  digitalWrite(SL_CLP, LOW);
-  digitalWrite(SL_NEAR, LOW);
-
-  Wire.begin();  // join i2c bus (address optional for writer).
 }
 
 /* ================================== END SETUP ================================== */
@@ -74,13 +76,12 @@ void getSensorData() {
   dataToSend[2] = digitalRead(SL_S3);
   dataToSend[3] = digitalRead(SL_S4);
   dataToSend[4] = digitalRead(SL_S5);
-  // dataToSend[5] = digitalRead(SL_CLP);
-  // dataToSend[6] = digitalRead(SL_NEAR);
 }
 
 // For debugging
 void showSensorData() {
   Serial.print("============================");
+  Serial.println();
   for (int i = 0; i < SL_DATA_SIZE; i++) {
     Serial.print(dataToSend[i]);
     Serial.print(", ");
