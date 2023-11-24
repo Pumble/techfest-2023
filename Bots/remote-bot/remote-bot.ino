@@ -1,8 +1,22 @@
+/**
+ * RESOURCES
+ * Bluetooth: https://www.martyncurrey.com/arduino-with-hc-05-bluetooth-module-at-mode/
+ */
+
 // INCLUDES
 #include <SoftwareSerial.h>
 #include <Servo.h>
 
 /* ================================== VAR DEFINITION ================================== */
+
+// ================================== MOVEMENT VARS
+#define MOVEMENT_FORWARD 'F'   // 70
+#define MOVEMENT_BACKWARD 'B'  // 66
+#define MOVEMENT_LEFT 'L'      // 76
+#define MOVEMENT_RIGHT 'R'     // 82
+#define MOVEMENT_STOP 'S'      // 83
+#define SERVO_DOWN 'M'         // 77
+#define SERVO_UP 'N'           // 78
 
 // ================================== MOTOR VARS
 /* Configuration S4A EDU
@@ -33,16 +47,18 @@ int speed = 255;  // between 50 and 255
  */
 char BT_NAME[21] = "hentaiGratis";  // Nombre de 20 caracteres maximo+
 char BT_PASSWORD[5] = "1234";       // PIN O CLAVE de 4 caracteres numericos
-#define BT_BPS 9600                 // 1=1200 , 2=2400, 3=4800, 4=9600, 5=19200, 6=38400, 7=57600, 8=115200
-#define BT_TX_PIN 1
-#define BT_RX_PIN 0
+#define BT_BPS 19200                // 1=1200 , 2=2400, 3=4800, 4=9600, 5=19200, 6=38400, 7=57600, 8=115200
+// #define BT_TX_PIN 1
+// #define BT_RX_PIN 0
+#define BT_TX_PIN 9
+#define BT_RX_PIN 10
 SoftwareSerial bt(BT_TX_PIN, BT_RX_PIN);  //Crea conexion al bluetooth - PIN 1 a TX y PIN 0 a RX
 
+// ================================== SERVO VARS
 #define SERVO_LEFT_PIN 7
 #define SERVO_RIGHT_PIN 8
-Servo leftServo;  // create servo object to control a servo
+Servo leftServo;
 Servo rightServo;
-int pos = 0;  // variable to store the servo position
 #define SERVO_INITIAL_POSITION 90
 #define SERVO_DOWN_POSITION 15
 #define SERVO_MIDDLE_POSITION 45
@@ -55,24 +71,24 @@ int pos = 0;  // variable to store the servo position
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
-  Serial.begin(BT_BPS);
+  Serial.begin(9600);
 
   // SETUPS
   Serial.println("starting setup");
 
   motorSetup();
-  // bluetoothSetup();
   servoSetup();
+  bluetoothSetup();
 
   Serial.println("setup completed");
 }
 
 void loop() {
-  // motorTest();
+  while (bt.available() == 0) {}
+  int input = bt.read();
+  Serial.println((char)input);
 
-  toogleLight(3);
-
-  // servoTest();
+  processCommand(input);
 }
 
 /* ================================== SETUP ================================== */
@@ -88,32 +104,28 @@ void bluetoothSetup() {
 
   bt.begin(BT_BPS);  // inicialmente la comunicacion serial a 9600 Baudios (velocidad de fabrica) MEJOR NO CAMBIAR
 
-  bt.print("AT");  // Inicializa comando AT
+  bt.print("AT");       // Inicializa comando AT
+  bt.print("AT+ORGL");  // Restaura el dispositivo de fabrica
   delay(1000);
 
-  bt.print("AT+RESET");  // Configura el nuevo nombre
-  delay(1000);           // espera 1 segundo
-
-  Serial.print("Version: ");
-  Serial.println(bt.print("AT+VERSION"));  // Configura el nuevo nombre
-  delay(1000);                             // espera 1 segundo
+  // Setear los nuevos valores
+  bt.print("AT+RESET");  // Reset device
+  // bt.print("AT+RMSAD");  // Delete authenticaded device
+  delay(1000);  // espera 1 segundo
 
   bt.print("AT+NAME");  // Configura el nuevo nombre
   bt.print(BT_NAME);
-  delay(1000);  // espera 1 segundo
 
-  bt.print("AT+BAUD");  // Configura la nueva velocidad
-  bt.print(BT_BPS);
-  delay(1000);
+  // bt.print("AT+BAUD");  // Configura la nueva velocidad
+  // bt.print(BT_BPS);
 
   bt.print("AT+PIN");  // Configura el nuevo PIN
   bt.print(BT_PASSWORD);
-  delay(1000);
 
   bt.flush();
 
-  Serial.print("Bluetooth started at ");
-  Serial.println(BT_BPS);
+  Serial.println("Bluetooth configured");
+  // getBluetoothData();
 }
 
 void servoSetup() {
@@ -151,16 +163,6 @@ void stop() {
 
 void left() {
   stop();
-  // LEFT MOTOR GOES FORWARD
-  analogWrite(MOTOR_LEFT_SPEED, speed);
-  digitalWrite(MOTOR_LEFT_DIR, HIGH);
-  // RIGHT MOTOR GOES BACKWARD
-  analogWrite(MOTOR_RIGHT_SPEED, speed);
-  digitalWrite(MOTOR_RIGHT_DIR, LOW);
-}
-
-void right() {
-  stop();
   // RIGHT MOTOR GOES FORWARD
   analogWrite(MOTOR_RIGHT_SPEED, speed);
   digitalWrite(MOTOR_RIGHT_DIR, HIGH);
@@ -169,7 +171,72 @@ void right() {
   digitalWrite(MOTOR_LEFT_DIR, LOW);
 }
 
+void right() {
+  stop();
+  // LEFT MOTOR GOES FORWARD
+  analogWrite(MOTOR_LEFT_SPEED, speed);
+  digitalWrite(MOTOR_LEFT_DIR, HIGH);
+  // RIGHT MOTOR GOES BACKWARD
+  analogWrite(MOTOR_RIGHT_SPEED, speed);
+  digitalWrite(MOTOR_RIGHT_DIR, LOW);
+}
+
 /* ================================== END MOVEMENT ================================== */
+
+/* ================================== BLIETOOTH ================================== */
+
+void getBluetoothData() {
+  Serial.println();
+  Serial.println();
+  Serial.print("VERSION: ");
+  Serial.println(bt.print("AT+VERSION"));
+  Serial.print("STATE: ");
+  Serial.println(bt.print("AT+STATE"));
+  Serial.print("ROLE: ");
+  Serial.println(bt.print("AT+ROLE"));
+  Serial.print("NAME: ");
+  Serial.println(bt.print("AT+NAME"));
+  Serial.print("PASSWORD: ");
+  Serial.println(bt.print("AT+PSWD"));
+  delay(1000);  // espera 1 segundo
+}
+
+void processCommand(int input) {
+  switch (input) {
+    case MOVEMENT_FORWARD:
+      digitalWrite(LED_BUILTIN, HIGH);
+      forward();
+      break;
+    case MOVEMENT_BACKWARD:
+      digitalWrite(LED_BUILTIN, LOW);
+      backward();
+      break;
+    case MOVEMENT_LEFT:
+      digitalWrite(LED_BUILTIN, LOW);
+      stop();
+      left();
+      break;
+    case MOVEMENT_RIGHT:
+      digitalWrite(LED_BUILTIN, HIGH);
+      stop();
+      right();
+      break;
+    case MOVEMENT_STOP:
+      digitalWrite(LED_BUILTIN, LOW);
+      stop();
+      break;
+    case SERVO_DOWN:
+      leftServo.write(SERVO_DOWN_POSITION);
+      rightServo.write(SERVO_DOWN_POSITION);
+      break;
+    case SERVO_UP:
+      leftServo.write(SERVO_HIGH_POSITION);
+      rightServo.write(SERVO_HIGH_POSITION);
+      break;
+  }
+}
+
+/* ================================== END BLIETOOTH ================================== */
 
 /* ================================== TESTING ================================== */
 
