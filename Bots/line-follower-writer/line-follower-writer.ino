@@ -23,9 +23,11 @@
 
 #define SL_DATA_SIZE 5
 int dataToSend[SL_DATA_SIZE] = { 0, 0, 0, 0, 0 };  // we going to ignore near and bumper for now
-#define READ_INTERVAL 10
+#define READ_INTERVAL 100
 #define BLINK_INTERVAL 300
 #define INITIAL_DELAY 5000
+
+char movement = NULL;
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
@@ -44,11 +46,12 @@ void setup() {
 void loop() {
   getSensorData();
   // showSensorData();
-  Wire.beginTransmission(8);
-  for (int i = 0; i < SL_DATA_SIZE; i++) {
-    Wire.write(dataToSend[i]);  //data bytes are queued in local buffer
-  }
+
+  Wire.beginTransmission(8);  // transmit to device #8
+  Wire.write(movement);       // sends the given value
   Wire.endTransmission();
+
+
   delay(READ_INTERVAL);
 }
 
@@ -76,6 +79,24 @@ void getSensorData() {
   dataToSend[2] = digitalRead(SL_S3);
   dataToSend[3] = digitalRead(SL_S4);
   dataToSend[4] = digitalRead(SL_S5);
+
+  if (dataToSend[0] == 1 && dataToSend[1] == 1 && dataToSend[2] == 1 && dataToSend[3] == 1 && dataToSend[4] == 1) {
+    movement = 'S';
+  } else if (dataToSend[0] == 0 && dataToSend[1] == 1 && dataToSend[2] == 1 && dataToSend[3] == 1 && dataToSend[4] == 1) {
+    movement = 'L';
+  } else if (dataToSend[0] == 1 && dataToSend[1] == 0 && dataToSend[2] == 1 && dataToSend[3] == 1 && dataToSend[4] == 1) {
+    movement = 'l';
+  } else if (dataToSend[0] == 1 && dataToSend[1] == 1 && dataToSend[2] == 0 && dataToSend[3] == 1 && dataToSend[4] == 1) {
+    movement = 'C';
+  } else if (dataToSend[0] == 1 && dataToSend[1] == 1 && dataToSend[2] == 1 && dataToSend[3] == 0 && dataToSend[4] == 1) {
+    movement = 'r';
+  } else if (dataToSend[0] == 1 && dataToSend[1] == 1 && dataToSend[2] == 1 && dataToSend[3] == 1 && dataToSend[4] == 0) {
+    movement = 'R';
+  } else if (dataToSend[0] == 0 && dataToSend[1] == 0 && dataToSend[2] == 0 && dataToSend[3] == 0 && dataToSend[4] == 0) {
+    movement = 'X';
+  } else {  // SINO, vamos de frente
+    movement = 'C';
+  }
 }
 
 // For debugging

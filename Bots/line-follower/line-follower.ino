@@ -29,9 +29,9 @@
 #define MOVEMENT_LEFT 'A'
 #define MOVEMENT_RIGHT 'D'
 #define MOVEMENT_STOP 'X'
-byte speed = 200;
-byte turn_speed = 100;
-byte hard_turn_speed = 61;
+byte speed = 255;
+byte turn_speed = 200;
+byte hard_turn_speed = 150;
 
 // BUILT-IN LED
 #define LED LED_BUILTIN
@@ -47,10 +47,8 @@ enum MOVEMENT_STATUS {
   LOST
 };
 MOVEMENT_STATUS movement = STAND_BY;
-#define MOVEMENT_DELAY 10
+#define MOVEMENT_DELAY 1000
 #define MOVEMENT_HARD_DELAY 50
-#define SL_DATA_SIZE 5
-int receivedData[SL_DATA_SIZE] = { 0, 0, 0, 0, 0 };
 
 void setup() {
   pinMode(LED, OUTPUT);
@@ -58,6 +56,7 @@ void setup() {
 
   // SETUPS
   Serial.println("starting setup");
+
   setupMotors();
   setupI2C();
 
@@ -68,26 +67,21 @@ void setup() {
 
 int input = 0;
 void loop() {
-  // Serial.println();
-  // Serial.print("movement: ");
-  // Serial.print(movement);
-  // Serial.println();
-
   switch (movement) {
     case HARD_LEFT:
-      forward(hard_turn_speed, speed);
+      hardLeft();
       break;
     case LEFT:
-      forward(turn_speed, speed);
+      left();
       break;
     case CENTER:
-      forward(speed, speed);
+      forward();
       break;
     case RIGHT:
-      forward(speed, turn_speed);
+      right();
       break;
     case HARD_RIGHT:
-      forward(speed, hard_turn_speed);
+      hardRight();
       break;
     case LOST:
     case STAND_BY:
@@ -120,43 +114,52 @@ void setupI2C() {
 
 /* ================================== MOVEMENT ================================== */
 
-void forward(int leftSpeed, int rightSpeed) {
-  // Serial.println("Forward");
-
-  analogWrite(MOTOR_RIGHT_PWM, rightSpeed);
-  analogWrite(MOTOR_RIGHT_DIR, 0);
-  analogWrite(MOTOR_LEFT_PWM, leftSpeed);
+void forward() {
+  analogWrite(MOTOR_LEFT_PWM, speed);
   analogWrite(MOTOR_LEFT_DIR, 0);
-  delay(MOVEMENT_DELAY);
-}
-
-void backward() {
-  Serial.println("Backward");
-
-  analogWrite(MOTOR_RIGHT_PWM, 0);
-  analogWrite(MOTOR_RIGHT_DIR, speed);
-  analogWrite(MOTOR_LEFT_PWM, 0);
-  analogWrite(MOTOR_LEFT_DIR, speed);
-}
-
-void left(int pDelay) {
-  Serial.println("Left");
 
   analogWrite(MOTOR_RIGHT_PWM, speed);
   analogWrite(MOTOR_RIGHT_DIR, 0);
-  analogWrite(MOTOR_LEFT_PWM, 0);
-  analogWrite(MOTOR_LEFT_DIR, turn_speed);
-  delay(pDelay);
 }
 
-void right(int pDelay) {
-  Serial.println("Right");
+void backward() {
+  analogWrite(MOTOR_LEFT_PWM, 0);
+  analogWrite(MOTOR_LEFT_DIR, speed);
 
   analogWrite(MOTOR_RIGHT_PWM, 0);
-  analogWrite(MOTOR_RIGHT_DIR, turn_speed);
+  analogWrite(MOTOR_RIGHT_DIR, speed);
+}
+
+void left() {
   analogWrite(MOTOR_LEFT_PWM, speed);
   analogWrite(MOTOR_LEFT_DIR, 0);
-  delay(pDelay);
+
+  digitalWrite(MOTOR_RIGHT_PWM, LOW);
+  digitalWrite(MOTOR_RIGHT_DIR, LOW);
+}
+
+void right() {
+  digitalWrite(MOTOR_LEFT_PWM, LOW);
+  digitalWrite(MOTOR_LEFT_DIR, LOW);
+
+  analogWrite(MOTOR_RIGHT_PWM, speed);
+  analogWrite(MOTOR_RIGHT_DIR, 0);
+}
+
+void hardLeft() {
+  analogWrite(MOTOR_LEFT_PWM, speed);
+  analogWrite(MOTOR_LEFT_DIR, 0);
+
+  analogWrite(MOTOR_RIGHT_PWM, 0);
+  analogWrite(MOTOR_RIGHT_DIR, speed);
+}
+
+void hardRight() {
+  analogWrite(MOTOR_LEFT_PWM, 0);
+  analogWrite(MOTOR_LEFT_DIR, speed);
+
+  analogWrite(MOTOR_RIGHT_PWM, speed);
+  analogWrite(MOTOR_RIGHT_DIR, 0);
 }
 
 void softStop() {
@@ -184,48 +187,37 @@ void softStop() {
  */
 
 void receiveEvent(int howMany) {
-  // RESET THE ARRAY
-  for (int i = 0; i < SL_DATA_SIZE; i++) {
-    receivedData[i] = 0;
+
+  char c = Wire.read();  // receive a character
+  switch (c) {
+    case 'S':
+      movement = STAND_BY;
+      break;
+    case 'L':
+      movement = HARD_LEFT;
+      break;
+    case 'l':
+      movement = LEFT;
+      break;
+    case 'C':
+      movement = CENTER;
+      break;
+    case 'r':
+      movement = RIGHT;
+      break;
+    case 'R':
+      movement = HARD_RIGHT;
+      break;
+    case 'X':
+      movement = LOST;
+      break;
+    default:
+      movement = CENTER;
+      break;
   }
 
-  for (int i = 0; i < howMany; i++) {
-    receivedData[i] = Wire.read();
-  }
-  /**
-   * Teoricamente, siempre debemos ir hacia adelante, 
-   * si la curva no es muy cerrada, y los sensores left o right 
-   * se activan, la curva va en esa direccion, pero no es muy
-   * pronunciada, por lo que solo reducir la velocidad deberia
-   * funcionar. Lo mismo con los extremos, solo que debemos
-   * reducir la velocidad más drasticamente.
-   */
-
-  if (receivedData[0] == 1 && receivedData[1] == 1 && receivedData[2] == 1 && receivedData[3] == 1 && receivedData[4] == 1) {
-    movement = STAND_BY;
-  } else if (receivedData[0] == 0 && receivedData[1] == 1 && receivedData[2] == 1 && receivedData[3] == 1 && receivedData[4] == 1) {
-    movement = HARD_LEFT;
-  } else if (receivedData[0] == 1 && receivedData[1] == 0 && receivedData[2] == 1 && receivedData[3] == 1 && receivedData[4] == 1) {
-    movement = LEFT;
-  } else if (receivedData[0] == 1 && receivedData[1] == 1 && receivedData[2] == 0 && receivedData[3] == 1 && receivedData[4] == 1) {
-    movement = CENTER;
-  } else if (receivedData[0] == 1 && receivedData[1] == 1 && receivedData[2] == 1 && receivedData[3] == 0 && receivedData[4] == 1) {
-    movement = RIGHT;
-  } else if (receivedData[0] == 1 && receivedData[1] == 1 && receivedData[2] == 1 && receivedData[3] == 1 && receivedData[4] == 0) {
-    movement = HARD_RIGHT;
-  } else if (receivedData[0] == 0 && receivedData[1] == 0 && receivedData[2] == 0 && receivedData[3] == 0 && receivedData[4] == 0) {
-    movement = LOST;
-  } else {  // SINO, vamos de frente
-    movement = CENTER;
-  }
-
-  Serial.print("================= Received =================");
-  Serial.println();
-  for (int i = 0; i < SL_DATA_SIZE; i++) {
-    Serial.print(receivedData[i]);
-    Serial.print(", ");
-  }
-  Serial.println();
+  Serial.print("selected movement: ");
+  Serial.println(c);
 }
 
 /* ================================== END I2C-COMMUNICATION ================================== */
@@ -239,16 +231,16 @@ void testLoop() {
 
     switch (input) {
       case MOVEMENT_FORWARD:
-        forward(MOVEMENT_DELAY, MOVEMENT_DELAY);
+        forward();
         break;
       case MOVEMENT_BACKWARD:
         backward();
         break;
       case MOVEMENT_LEFT:
-        left(MOVEMENT_DELAY);
+        left();
         break;
       case MOVEMENT_RIGHT:
-        right(MOVEMENT_DELAY);
+        right();
         break;
       case MOVEMENT_STOP:
         softStop();
