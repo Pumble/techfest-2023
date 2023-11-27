@@ -47,3 +47,6 @@ Passive Power Over Ethernet Cable Kit: https://www.crcibernetica.com/passive-pow
 Multi Servo Tester: https://www.crcibernetica.com/multi-servo-tester/
 Servo Motor LEGO Compatible(Dual Output Shafts): https://www.crcibernetica.com/servo-motor-lego-compatible-dual-output-shafts/
 Bluetooth Module HC-06: https://www.crcibernetica.com/bluetooth-module-hc-06/
+
+## Links interesantes
+- https://lamborghino.com/
